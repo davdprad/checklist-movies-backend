@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 
@@ -60,3 +61,18 @@ async def add_movie(movie: Movie):
 @app.get("/movies")
 async def get_my_movies():
     return {"movies": movie_list}
+
+@app.post("/delete-movies")
+async def delete_movies(movies: List[Movie]):
+    for movie in movies:
+        movie_to_delete = next((m for m in movie_list if m["id"] == movie.id), None)
+
+        if movie_to_delete is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Filme não encontrado na lista."
+            )
+
+        movie_list.remove(movie_to_delete)
+
+    return {"message": "Filmes removidos com sucesso!", "movie_list": movie_list}
