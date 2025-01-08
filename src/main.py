@@ -1,13 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List
+# Arquivo: main.py
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import requests
-
-base_url = 'https://api.themoviedb.org/3/search/movie'
-base_url_id = 'https://api.themoviedb.org/3/movie'
-
-api_key = '01faa49e3ab1fe3b79aba033317dfb4b'
+from routers.api_movie import api_router
+from routers.my_list import my_list_router
+from routers.watched_list import watched_list_router
 
 app = FastAPI()
 
@@ -19,60 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/movie-data")
-async def get_movies(movie: str):
-    response = requests.get(f'{base_url}?api_key={api_key}&language=pt-BR&query={movie}')
-    data = response.json()
-
-    return data['results']
-
-movie_list = []
-
-class Movie(BaseModel):
-    id: int
-
-@app.post("/add-movie")
-async def add_movie(movie: Movie):
-    if any(m["id"] == movie.id for m in movie_list):
-        raise HTTPException(
-            status_code=400,
-            detail="Filme já está na lista."
-        )
-    
-    response = requests.get(f'https://api.themoviedb.org/3/movie/{movie.id}?api_key={api_key}&language=pt-BR')
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=404,
-            detail="Filme não encontrado."
-        )
-    
-    movie_data = response.json()
-
-    movie_list.append({
-        "id": movie_data["id"],
-        "title": movie_data["title"],
-        "release_date": movie_data.get("release_date", "Data não disponível"),
-        "poster_path": movie_data.get("poster_path", ""),
-        "description": movie_data.get("overview", "Descrição não disponível")
-    })
-
-    return {"message": "Filme adicionado com sucesso!", "movie_list": movie_list}
-
-@app.get("/movies")
-async def get_my_movies():
-    return {"movies": movie_list}
-
-@app.post("/delete-movies")
-async def delete_movies(movies: List[Movie]):
-    for movie in movies:
-        movie_to_delete = next((m for m in movie_list if m["id"] == movie.id), None)
-
-        if movie_to_delete is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Filme não encontrado na lista."
-            )
-
-        movie_list.remove(movie_to_delete)
-
-    return {"message": "Filmes removidos com sucesso!", "movie_list": movie_list}
+# Registro de roteadores
+app.include_router(api_router, prefix="/api", tags=["Filmes da API"])
+app.include_router(my_list_router, prefix="/my-list", tags=["Lista de Pendentes"])
+app.include_router(watched_list_router, prefix="/watched-list", tags=["Lista de Assistidos"])
